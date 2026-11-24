@@ -33,11 +33,6 @@ export default function Login() {
         }
     };
 
-    const useDemo = () => {
-        setValue("email", "alex@timetoprogram.com");
-        setValue("password", "Test@1234");
-    };
-
     return (
         <AuthShell>
             <h1 className="text-2xl font-bold text-ink">Welcome Back</h1>
@@ -83,13 +78,6 @@ export default function Login() {
                     Sign In
                 </Button>
             </form>
-
-            <button
-                onClick={useDemo}
-                className="mt-3 w-full rounded-full border border-dashed border-brand-300 py-2.5 text-sm font-medium text-brand-700 transition hover:bg-brand-50"
-            >
-                Try The Demo Account
-            </button>
 
             <p className="mt-6 text-center text-sm text-ink-soft">
                 Don't Have An Account?{" "}

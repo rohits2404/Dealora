@@ -1,301 +1,57 @@
-import {
-    mockUser,
-    makeLeads,
-    makeContacts,
-    makeNotes,
-    makeTasks,
-    mockAiStatus,
-    mockAiSummary,
-    mockAiEmail,
-    mockAiInsights,
-} from "./mockData";
+import api from "./api";
 
-let leads = makeLeads();
-let contacts = makeContacts();
-let notes = makeNotes();
-let tasks = makeTasks();
-
-const uid = () => "id_" + Math.random().toString(36).slice(2, 10);
-const clone = (d) => JSON.parse(JSON.stringify(d));
-const reply = (data, ms = 250) =>
-    new Promise((resolve) => setTimeout(() => resolve(clone(data)), ms));
-
-const leadLite = (id) => {
-    const l = leads.find((x) => x._id === id);
-    return l ? { _id: l._id, name: l.name, company: l.company } : null;
-};
-
+/* Auth */
 export const authApi = {
-    login: () => reply({ success: true, token: "mock-token", user: mockUser }),
-
-    register: (data) =>
-        reply({
-            success: true,
-            token: "mock-token",
-            user: { ...mockUser, ...data },
-        }),
-
-    me: () => reply({ success: true, user: mockUser }),
-
-    updateProfile: (data) => {
-        Object.assign(mockUser, data);
-        return reply({ success: true, user: mockUser });
-    },
+    login: (data) => api.post("/auth/login", data),
+    register: (data) => api.post("/auth/register", data),
+    me: () => api.get("/auth/me"),
+    updateProfile: (data) => api.put("/auth/profile", data),
 };
 
+/* Leads */
 export const leadsApi = {
-    list: () => reply({ success: true, count: leads.length, leads }),
-
-    get: (id) =>
-        reply({ success: true, lead: leads.find((l) => l._id === id) }),
-
-    create: (data) => {
-        const lead = {
-            _id: uid(),
-            order: 0,
-            tags: [],
-            aiSummary: "",
-            aiRiskScore: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            ...data,
-        };
-        leads = [lead, ...leads];
-        return reply({ success: true, lead });
-    },
-
-    update: (id, data) => {
-        leads = leads.map((l) =>
-            l._id === id
-                ? { ...l, ...data, updatedAt: new Date().toISOString() }
-                : l,
-        );
-        return reply({ success: true, lead: leads.find((l) => l._id === id) });
-    },
-
-    remove: (id) => {
-        leads = leads.filter((l) => l._id !== id);
-        return reply({ success: true, message: "Lead deleted" });
-    },
-
-    reorder: (updates) => {
-        updates.forEach((u) => {
-            leads = leads.map((l) =>
-                l._id === u.id ? { ...l, status: u.status, order: u.order } : l,
-            );
-        });
-        return reply({ success: true, message: "Pipeline updated" });
-    },
+    list: (params) => api.get("/leads", { params }),
+    get: (id) => api.get(`/leads/${id}`),
+    create: (data) => api.post("/leads", data),
+    update: (id, data) => api.put(`/leads/${id}`, data),
+    remove: (id) => api.delete(`/leads/${id}`),
+    reorder: (updates) => api.patch("/leads/reorder", { updates }),
 };
 
+/* Contacts */
 export const contactsApi = {
-    list: () => reply({ success: true, count: contacts.length, contacts }),
-
-    get: (id) =>
-        reply({ success: true, contact: contacts.find((c) => c._id === id) }),
-
-    create: (data) => {
-        const contact = {
-            _id: uid(),
-            tags: [],
-            favorite: false,
-            createdAt: new Date().toISOString(),
-            ...data,
-        };
-        contacts = [contact, ...contacts];
-        return reply({ success: true, contact });
-    },
-
-    update: (id, data) => {
-        contacts = contacts.map((c) => (c._id === id ? { ...c, ...data } : c));
-        return reply({
-            success: true,
-            contact: contacts.find((c) => c._id === id),
-        });
-    },
-
-    remove: (id) => {
-        contacts = contacts.filter((c) => c._id !== id);
-        return reply({ success: true, message: "Contact deleted" });
-    },
+    list: (params) => api.get("/contacts", { params }),
+    get: (id) => api.get(`/contacts/${id}`),
+    create: (data) => api.post("/contacts", data),
+    update: (id, data) => api.put(`/contacts/${id}`, data),
+    remove: (id) => api.delete(`/contacts/${id}`),
 };
 
+/* Notes */
 export const notesApi = {
-    list: () => {
-        const sorted = [...notes].sort(
-            (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0),
-        );
-        return reply({ success: true, count: sorted.length, notes: sorted });
-    },
-
-    create: (data) => {
-        const note = {
-            _id: uid(),
-            content: data.content,
-            lead: data.lead ? leadLite(data.lead) : null,
-            contact: null,
-            pinned: Boolean(data.pinned),
-            createdAt: new Date().toISOString(),
-        };
-        notes = [note, ...notes];
-        return reply({ success: true, note });
-    },
-
-    update: (id, data) => {
-        notes = notes.map((n) => {
-            if (n._id !== id) return n;
-            const next = { ...n, ...data };
-            if ("lead" in data)
-                next.lead = data.lead ? leadLite(data.lead) : null;
-            return next;
-        });
-        return reply({ success: true, note: notes.find((n) => n._id === id) });
-    },
-
-    remove: (id) => {
-        notes = notes.filter((n) => n._id !== id);
-        return reply({ success: true, message: "Note deleted" });
-    },
+    list: (params) => api.get("/notes", { params }),
+    create: (data) => api.post("/notes", data),
+    update: (id, data) => api.put(`/notes/${id}`, data),
+    remove: (id) => api.delete(`/notes/${id}`),
 };
 
+/* Tasks */
 export const tasksApi = {
-    list: () => reply({ success: true, count: tasks.length, tasks }),
-
-    create: (data) => {
-        const task = {
-            _id: uid(),
-            description: "",
-            relatedContact: null,
-            createdAt: new Date().toISOString(),
-            ...data,
-            relatedLead: data.relatedLead ? leadLite(data.relatedLead) : null,
-            completedAt:
-                data.status === "Completed" ? new Date().toISOString() : null,
-        };
-        tasks = [task, ...tasks];
-        return reply({ success: true, task });
-    },
-
-    update: (id, data) => {
-        tasks = tasks.map((t) => {
-            if (t._id !== id) return t;
-            const next = { ...t, ...data };
-            if ("relatedLead" in data)
-                next.relatedLead = data.relatedLead
-                    ? leadLite(data.relatedLead)
-                    : null;
-            if (data.status === "Completed" && !next.completedAt)
-                next.completedAt = new Date().toISOString();
-            if (data.status && data.status !== "Completed")
-                next.completedAt = null;
-            return next;
-        });
-        return reply({ success: true, task: tasks.find((t) => t._id === id) });
-    },
-
-    remove: (id) => {
-        tasks = tasks.filter((t) => t._id !== id);
-        return reply({ success: true, message: "Task deleted" });
-    },
+    list: (params) => api.get("/tasks", { params }),
+    create: (data) => api.post("/tasks", data),
+    update: (id, data) => api.put(`/tasks/${id}`, data),
+    remove: (id) => api.delete(`/tasks/${id}`),
 };
 
+/* AI */
 export const aiApi = {
-    status: () => reply(mockAiStatus),
-
-    leadSummary: () => reply(mockAiSummary, 800),
-
-    generateEmail: () => reply(mockAiEmail, 900),
-
-    salesInsights: () => reply(mockAiInsights, 900),
+    status: () => api.get("/ai/status"),
+    leadSummary: (data) => api.post("/ai/lead-summary", data),
+    generateEmail: (data) => api.post("/ai/generate-email", data),
+    salesInsights: (data) => api.post("/ai/sales-insights", data),
 };
 
+/* Analytics */
 export const analyticsApi = {
-    overview: () => reply(buildOverview()),
+    overview: () => api.get("/analytics/overview"),
 };
-
-function buildOverview() {
-    const stages = ["New", "Qualified", "Proposal", "Won", "Lost"];
-    const byStage = Object.fromEntries(
-        stages.map((s) => [s, { count: 0, value: 0 }]),
-    );
-    let totalValue = 0;
-    let wonValue = 0;
-
-    for (const l of leads) {
-        const b =
-            byStage[l.status] || (byStage[l.status] = { count: 0, value: 0 });
-        b.count += 1;
-        b.value += l.value || 0;
-        totalValue += l.value || 0;
-        if (l.status === "Won") wonValue += l.value || 0;
-    }
-    const won = byStage.Won.count;
-    const lost = byStage.Lost.count;
-    const closed = won + lost;
-    const conversionRate = closed ? Math.round((won / closed) * 100) : 0;
-
-    const labels = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-    ];
-    const now = new Date();
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months.push({
-            key: `${d.getFullYear()}-${d.getMonth()}`,
-            label: labels[d.getMonth()],
-        });
-    }
-    const idx = Object.fromEntries(months.map((m, i) => [m.key, i]));
-    const trend = months.map((m) => ({ month: m.label, leads: 0, won: 0 }));
-    for (const l of leads) {
-        const d = new Date(l.createdAt);
-        const key = `${d.getFullYear()}-${d.getMonth()}`;
-        if (idx[key] !== undefined) {
-            trend[idx[key]].leads += 1;
-            if (l.status === "Won") trend[idx[key]].won += l.value || 0;
-        }
-    }
-
-    const recentLeads = [...leads]
-        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-        .slice(0, 6)
-        .map((l) => ({
-            id: l._id,
-            name: l.name,
-            company: l.company,
-            status: l.status,
-            value: l.value,
-            updatedAt: l.updatedAt,
-        }));
-
-    return {
-        success: true,
-        stats: {
-            revenueWon: wonValue,
-            pipelineValue: totalValue,
-            totalLeads: leads.length,
-            totalContacts: contacts.length,
-            openTasks: tasks.filter((t) => t.status !== "Completed").length,
-            conversionRate,
-        },
-        pipeline: stages.map((s) => ({
-            stage: s,
-            count: byStage[s].count,
-            value: byStage[s].value,
-        })),
-        trend,
-        recentLeads,
-    };
-}
