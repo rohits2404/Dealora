@@ -1,0 +1,32 @@
+import jwt from "jsonwebtoken";
+import { User } from "../models/User.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+
+export const protect = asyncHandler(async (req, res, next) => {
+    let token;
+    const header = req.headers.authorization;
+
+    if (header && header.startsWith("Bearer ")) {
+        token = header.split(" ")[1];
+    }
+
+    if (!token) {
+        throw new ApiError(401, "Not Authorized, No Token Provided");
+    }
+
+    let decoded;
+    try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+        throw new ApiError(401, "Not Authorized, Token Invalid Or Expired");
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+        throw new ApiError(401, "Not Authorized, User No Longer Exists");
+    }
+
+    req.user = user;
+    next();
+});
